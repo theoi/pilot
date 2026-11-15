@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Birth details</title>
+<style>
+:root{--ink:#1f2328;--soft:#5b6470;--line:#d8dde3;--bg:#f6f7f9;--card:#fff;--accent:#2b5fd9;--warn:#8a5a00;--warn-bg:#fff4d6;--ok:#1a7f4b}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:680px;margin:0 auto;padding:16px 16px 40px}
+h1{font-size:1.35em;margin:.2em 0 .5em}
+h2{font-size:1.15em;margin:0 0 .3em}
+p{margin:.5em 0}
+.note{color:var(--soft);font-size:.93em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+label.f{display:block;margin:10px 0 0;font-size:.93em;color:var(--soft)}
+input[type=text],input[type=date],input[type=time],select{display:block;width:100%;min-height:46px;margin-top:4px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
+label.c{display:flex;align-items:center;gap:10px;min-height:46px;padding:4px 0}
+label.c input{width:22px;height:22px;flex:none}
+.areas{display:grid;grid-template-columns:1fr 1fr;column-gap:16px}
+ul.check{list-style:none;padding:0;margin:8px 0}
+ul.check li{padding:8px 10px;margin:6px 0;border-radius:8px;background:var(--warn-bg);color:var(--warn)}
+ul.check li.ok{background:#e6f4ec;color:var(--ok)}
+textarea{display:block;width:100%;height:7.5em;padding:10px;border:1px solid var(--line);border-radius:8px;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#fff;color:var(--ink)}
+button.copy{width:100%;min-height:54px;margin:12px 0;border:0;border-radius:10px;background:var(--accent);color:#fff;font:inherit;font-weight:700}
+button.plain{min-height:46px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
+[hidden]{display:none!important}
+@media (max-width:480px){body{font-size:16px}.areas{grid-template-columns:1fr}}
+</style></head><body>
+<main>
+<h1>Birth details</h1>
+<p>This is all we need before your survey. Nothing is sent anywhere: at the end you copy three lines of text into the chat. What you type is saved in this browser until you clear it.</p>
+<p class="note">Until your survey is finished, please do not open the agents' transcripts, working files, or the answer key.</p>
+<div id="people"></div>
+<div class="card"><h2>Choose your five areas (optional)</h2>
+<p class="note">Your survey has five sections about you. Tick up to five to choose them. If you tick none, the first five are used; if you tick fewer than five, the rest are filled from the list in order. Two sections on periods of your life and two on you and your partner are always included.</p>
+<div class="areas" id="areas"></div><p class="note" id="areacount"></p></div>
+<h2>Your reply</h2>
+<ul class="check" id="check"></ul>
+<button type="button" class="copy" id="copy">Copy my answers</button>
+<p class="note">Then paste them into the chat. The same text is in the box below.</p>
+<textarea id="out" readonly aria-label="Your answers as text"></textarea>
+<p><button type="button" class="plain" id="reset">Clear everything</button></p>
+</main>
+<script>
+"use strict";
+const AREAS=[["temperament", "Your basic temperament"], ["emotions", "Your emotional life"], ["love", "Love and attraction"], ["vocation", "Vocation and ambition"], ["mind", "How you think and talk"], ["drive", "Drive and conflict"], ["partnership", "Long-term partnership"], ["workstyle", "How you work"], ["money", "Money and security"], ["family", "Family and roots"], ["friends", "Friendships and social life"], ["health", "Health and energy"], ["creativity", "Creativity and play"], ["beliefs", "Beliefs and meaning"], ["growth", "Inner growth"]];
+const KEY='astro-pilot-intake-v2', OLDKEY='astro-pilot-intake-v1';
+const $=id=>document.getElementById(id);
+const person=()=>({d:'',t:'',u:false,p:'',s:'certificate'});
+const blank=()=>({me:person(),partner:person(),areas:[]});
+const codes=AREAS.map(a=>a[0]);
+function take(o){const S=blank();if(!o||typeof o!=='object')return S;
+ ['me','partner'].forEach(k=>{const b=o[k];if(b&&typeof b==='object'){['d','t','p','s'].forEach(f=>{if(typeof b[f]==='string')S[k][f]=b[f];});S[k].u=b.u===true;if(!['certificate','family','guess'].includes(S[k].s))S[k].s='certificate';}});
+ if(Array.isArray(o.areas))S.areas=codes.filter(c=>o.areas.includes(c)).slice(0,5);
+ return S;}
+let S=blank();
+try{const raw=localStorage.getItem(KEY)||localStorage.getItem(OLDKEY);if(raw)S=take(JSON.parse(raw));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+$('people').innerHTML=[['me','You'],['partner','Your partner']].map(([k,name])=>`<div class="card"><h2>${name}</h2>
+ <label class="f">Date of birth<input type="date" data-b="${k}.d"></label>
+ <label class="f" data-timed="${k}">Time of birth (local clock time)<input type="time" data-b="${k}.t"></label>
+ <label class="c"><input type="checkbox" data-u="${k}"> I do not know the time to within about half an hour</label>
+ <p class="note" data-untimed="${k}" hidden>The reading will leave out the parts that depend on the time: the houses and the rising sign.</p>
+ <label class="f" data-timed="${k}">Where the time comes from<select data-b="${k}.s"><option value="certificate">A birth certificate or hospital record</option><option value="family">Someone's memory</option><option value="guess">It is a guess</option></select></label>
+ <label class="f">Place of birth: town, region, country<input type="text" data-b="${k}.p" autocomplete="off"></label></div>`).join('');
+$('areas').innerHTML=AREAS.map(a=>`<label class="c"><input type="checkbox" data-area="${a[0]}"> ${esc(a[1])}</label>`).join('');
+
+/* ---------- reply text (must match the template in intake.md) ---------- */
+const clean=s=>String(s).replace(/[|\r\n]+/g,' ').replace(/\s+/g,' ').trim();
+function reply(){
+ const L=['me','partner'].map(k=>{const b=S[k];return `${k.toUpperCase()}: ${b.d||'????-??-??'}, ${b.u?'unknown':(b.t?b.t.slice(0,5):'??:??')}, ${clean(b.p)||'?'} | time: ${b.u?'unknown':b.s}`;});
+ L.push('AREAS: '+S.areas.join(', '));
+ return L.join('\n');
+}
+function problems(){const P=[];
+ ['me','partner'].forEach(k=>{const b=S[k],m=[];if(!b.d)m.push('date');if(!b.u&&!b.t)m.push('time');if(!clean(b.p))m.push('place');if(m.length)P.push(`Birth details for ${k==='me'?'you':'your partner'}: ${m.join(', ')} missing.`);});
+ return P;}
+function paint(){
+ document.querySelectorAll('[data-b]').forEach(e=>{const[k,f]=e.dataset.b.split('.');if(e.value!==S[k][f])e.value=S[k][f];});
+ document.querySelectorAll('[data-u]').forEach(e=>{e.checked=S[e.dataset.u].u;});
+ document.querySelectorAll('[data-timed]').forEach(e=>{e.hidden=S[e.dataset.timed].u;});
+ document.querySelectorAll('[data-untimed]').forEach(e=>{e.hidden=!S[e.dataset.untimed].u;});
+ const full=S.areas.length>=5;
+ document.querySelectorAll('[data-area]').forEach(e=>{e.checked=S.areas.includes(e.dataset.area);e.disabled=full&&!e.checked;});
+ $('areacount').textContent=S.areas.length?S.areas.length+' of 5 chosen'+(full?'. Untick one to change your choice.':'.'):'None chosen: the first five will be used.';
+ const P=problems();
+ $('check').innerHTML=P.length?P.map(p=>`<li>${esc(p)}</li>`).join(''):'<li class="ok">Everything needed is filled in.</li>';
+ $('out').value=reply();
+}
+document.addEventListener('input',e=>{const t=e.target;
+ if(t.dataset.b!==undefined){const[k,f]=t.dataset.b.split('.');S[k][f]=t.value;}
+ else if(t.dataset.u!==undefined)S[t.dataset.u].u=t.checked;
+ else if(t.dataset.area!==undefined){const a=t.dataset.area;let x=S.areas.filter(c=>c!==a);if(t.checked&&x.length<5)x.push(a);S.areas=codes.filter(c=>x.includes(c));}
+ else return;
+ save();paint();});
+$('copy').onclick=()=>{const o=$('out');o.value=reply();const done=()=>{$('copy').textContent='Copied. Paste it into the chat.';setTimeout(()=>{$('copy').textContent='Copy my answers';},4000);};
+ const fallback=()=>{o.focus();o.select();try{document.execCommand('copy');}catch(e){}done();};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(o.value).then(done,fallback);else fallback();};
+$('reset').onclick=()=>{if(confirm('Clear what you typed on this device?')){try{localStorage.removeItem(KEY);localStorage.removeItem(OLDKEY);}catch(e){}S=blank();paint();}};
+paint();
+</script></body></html>
